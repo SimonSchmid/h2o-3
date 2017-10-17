@@ -8,6 +8,7 @@ import water.fvec.Chunk;
 import water.fvec.Frame;
 import water.fvec.Vec;
 import water.util.ArrayUtils;
+import water.util.Log;
 import water.util.MathUtils;
 
 import java.util.Arrays;
@@ -167,25 +168,25 @@ public class ModelMetricsBinomial extends ModelMetricsSupervised {
      * @param f Frame
      * @param frameWithWeights Frame that contains extra columns such as weights
      * @param preds Optional predictions (can be null), only used to compute Gains/Lift table for binomial problems  @return
-     * @return
+     * @return ModelMetricsBinomial
      */
     @Override public ModelMetrics makeModelMetrics(Model m, Frame f, Frame frameWithWeights, Frame preds) {
       GainsLift gl = null;
       if (_wcount > 0) {
         if (preds!=null) {
-          Vec resp = m==null && f.vec(f.numCols()-1).isCategorical() ? f.vec(f.numCols()-1) //work-around for the case where we don't have a model, assume that the last column is the actual response
-                  : f.vec(m._parms._response_column);
+          if (frameWithWeights == null) frameWithWeights = f;
+          Vec resp = m==null && frameWithWeights.vec(f.numCols()-1).isCategorical() ? frameWithWeights.vec(f.numCols()-1) //work-around for the case where we don't have a model, assume that the last column is the actual response
+                  : frameWithWeights.vec(m._parms._response_column);
           if (resp != null) {
-            if (frameWithWeights ==null) frameWithWeights = f;
             Vec weight = m==null?null : frameWithWeights.vec(m._parms._weights_column);
-            gl = calculateGainsLift(m, preds.lastVec(), resp, weight);
+            gl = calculateGainsLift(m, preds, resp, weight);
           }
         }
       }
       return makeModelMetrics(m, f, gl);
     }
 
-    public ModelMetrics makeModelMetrics(Model m, Frame f, GainsLift gl) {
+    private ModelMetrics makeModelMetrics(Model m, Frame f, GainsLift gl) {
       double mse = Double.NaN;
       double logloss = Double.NaN;
       double sigma = Double.NaN;
@@ -201,15 +202,27 @@ public class ModelMetricsBinomial extends ModelMetricsSupervised {
       return mm;
     }
 
-    public GainsLift calculateGainsLift(Model m, Vec p1, Vec resp, Vec weight) { // FIXME: should not be public with this catch!
+    private GainsLift calculateGainsLift(Model m, Frame preds, Vec resp, Vec weights) {
       GainsLift gl = null;
       try {
-        gl = new GainsLift(p1, resp, weight);
+        gl = new GainsLift(preds.lastVec(), resp, weights);
         gl.exec(m != null ? m._output._job : null);
-      } catch(Throwable t) {
-        throw t; // FIXME (this din't throw before)!
+      } catch(Throwable t) { // TODO: Why do we need to catch Throwable here?
+        Log.debug("Calculating Gains-Lift failed", t);
       }
       return gl;
+    }
+
+    @Override
+    public Frame makePredictionCache(Model m, Vec response) {
+      return new Frame(response.makeVolatileDoubles(1));
+    }
+
+    @Override
+    public void cachePrediction(double[] cdist, Chunk[] chks, int row, int cacheChunkIdx, Model m) {
+      assert cdist.length == 2 || cdist.length == 3;
+      double pred = (cdist.length == 2) ? 1.0 - cdist[1] : cdist[cdist.length - 1];
+      chks[cacheChunkIdx].set(row, pred);
     }
 
     public String toString(){
