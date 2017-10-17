@@ -39,12 +39,12 @@ test.pubdev.2372 <- function(conn){
 	gain_prob = sort(gain_table$lower_threshold)
 #  print(h2o_quantile)
 #  print(gain_prob)
-	expect_equal(h2o_quantile,gain_prob,tolerance= 1e-5)
+	expect_equal(h2o_quantile,gain_prob,tolerance= 1e-7)
 
 	R_quantile = as.numeric(quantile(pred_prob[,1],probs = probs))
 #  print(R_quantile)
 #  print(h2o_quantile)
-	expect_equal(R_quantile,h2o_quantile,tolerance= 1e-5)
+	expect_equal(R_quantile,h2o_quantile,tolerance= 1e-8)
 
 	print("Get gain table from performance metric on test set")
 	perf = h2o.performance(model, test)
@@ -72,7 +72,7 @@ test.pubdev.2372 <- function(conn){
   	ee = length(which(subs=="yes"))
   	nn = length(subs)
   	pp = ee/nn
-  	expect_equal(pp,gain_table$response_rate[j],tolerance= 1e-3,scale =1)
+  	expect_equal(pp,gain_table$response_rate[j],tolerance= 1e-3)
   	j = j+1
 	}
 
