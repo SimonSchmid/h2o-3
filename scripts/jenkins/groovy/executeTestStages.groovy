@@ -263,31 +263,35 @@ def defaultTestPipeline(nodeLabel, body) {
     def insideDocker = load('h2o-3/scripts/jenkins/groovy/insideDocker.groovy')
     def buildTarget = load('h2o-3/scripts/jenkins/groovy/buildTarget.groovy')
     def customEnv = load('h2o-3/scripts/jenkins/groovy/customEnv.groovy')
+    def wasStageSuccessful = load('h2o-3/scripts/jenkins/groovy/wasStageSuccessful.groovy')
 
     def buildEnv = customEnv() + ["PYTHON_VERSION=${config.pythonVersion}", "R_VERSION=${config.rVersion}"]
 
     insideDocker(buildEnv, config.timeoutValue, 'MINUTES') {
       stage(config.stageName) {
-        def stageDir = stageNameToDirName(config.stageName)
-        def h2oFolder = stageDir + '/h2o-3'
-        dir(stageDir) {
-          deleteDir()
-        }
+        def runAllStages = env.rerunFailedStages == null
+        if(!wasStageSuccessful(config.stageName)) {
+          def stageDir = stageNameToDirName(config.stageName)
+          def h2oFolder = stageDir + '/h2o-3'
+          dir(stageDir) {
+            deleteDir()
+          }
 
-        unpackTestPackage(config.lang, stageDir)
+          unpackTestPackage(config.lang, stageDir)
 
-        if (config.lang == 'py') {
-          installPythonPackage(h2oFolder)
-        }
+          if (config.lang == 'py') {
+            installPythonPackage(h2oFolder)
+          }
 
-        if (config.lang == 'r') {
-          installRPackage(h2oFolder)
-        }
+          if (config.lang == 'r') {
+            installRPackage(h2oFolder)
+          }
 
-        buildTarget {
-          target = config.target
-          hasJUnit = config.hasJUnit
-          h2o3dir = h2oFolder
+          buildTarget {
+            target = config.target
+            hasJUnit = config.hasJUnit
+            h2o3dir = h2oFolder
+          }
         }
       }
     }
