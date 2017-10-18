@@ -66,6 +66,7 @@ public abstract class SharedTree<M extends SharedTreeModel<M,P,O>, P extends Sha
 
   protected final Frame validWorkspace() { return _validWorkspace; }
   protected transient Frame _validWorkspace;
+  protected transient int _lastScoredTree = 0;
 
   protected transient Frame _trainPredsCache;
   protected transient Frame _validPredsCache;
@@ -696,13 +697,12 @@ public abstract class SharedTree<M extends SharedTreeModel<M,P,O>, P extends Sha
         int startTree;
         if (validWorkspace() != null) {
           v = v.add(validWorkspace());
-          for (startTree = out._scored_valid.length - 1; startTree > 0; startTree--)
-            if (! Double.isNaN(out._scored_valid[startTree]._rmse))
-              break;
+          startTree = _lastScoredTree;
         } else
           startTree = -1;
         Score scv = new Score(this, startTree,false, vresponse(), _model._output.getModelCategory(), computeGainsLift, _validPredsCache);
         ModelMetrics mmv = scv.scoreAndMakeModelMetrics(_model, _parms.valid(), v, build_tree_one_node);
+        _lastScoredTree = _model._output._ntrees;
         out._validation_metrics = mmv;
         if (_model._output._ntrees>0 || scoreZeroTrees()) //don't score the 0-tree model - the error is too large
           out._scored_valid[out._ntrees].fillFrom(mmv);
